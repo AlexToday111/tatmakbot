@@ -1,10 +1,13 @@
+import asyncio
 import json
 import logging
 import os
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram.warnings import PTBUserWarning
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -22,6 +25,11 @@ logging.basicConfig(
     level=logging.INFO,
 )
 logger = logging.getLogger(__name__)
+warnings.filterwarnings(
+    "ignore",
+    message="If 'per_message=False'",
+    category=PTBUserWarning,
+)
 
 TELEGRAM_TOKEN = os.environ.get("BOT_TOKEN")
 if not TELEGRAM_TOKEN:
@@ -359,7 +367,7 @@ async def add_enter_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if wrong_attempts >= 2:
             clear_session(context, chat_id)
             await update.message.reply_text(
-                "❌ Ввод отменён. Начните заново: /add"
+                "❌ Ввод отменён. Начните заново: /modify"
             )
             return ConversationHandler.END
 
@@ -468,7 +476,7 @@ async def modify_enter_quantity(update: Update, context: ContextTypes.DEFAULT_TY
             "Ответьте именно на сообщение бота с запросом количества "
             "Если отправите не туда ещё раз, я заберу все ваше имущество"
         )
-        return ENTER_QUANTITY_ADD
+        return ENTER_NEW_QUANTITY
 
     try:
         new_qty = int(update.message.text)
@@ -578,6 +586,9 @@ def main() -> None:
     for conv in build_conversation_handlers():
         application.add_handler(conv)
 
+    # Python 3.14 may not create a default loop automatically.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
